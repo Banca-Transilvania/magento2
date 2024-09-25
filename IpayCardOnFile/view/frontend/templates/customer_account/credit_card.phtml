@@ -1,0 +1,65 @@
+<?php
+/**
+ * Copyright © Banca Transilvania. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+
+declare(strict_types=1);
+
+use Magento\Vault\Api\Data\PaymentTokenInterface;
+
+/** @var \BTRL\IpayCardOnFile\Block\Customer\CardRenderer $block */
+/** @var \Magento\Framework\Escaper $escaper */
+
+$ccNumberView = $escaper->escapeHtml($block->getNumberLast4Digits());
+
+/** @var \BTRL\IpayCardOnFile\ViewModel\CardRendererViewModel $cardRendererViewModel */
+$cardRendererViewModel = $block->getData('card_renderer_view_model');
+$type = $cardRendererViewModel->getMethodTitle();
+?>
+<tr>
+    <td data-th="<?= $escaper->escapeHtml(__('Card Number')) ?>" class="col card-number">
+        <?= /* @noEscape */ $ccNumberView ?>
+    </td>
+    <td data-th="<?= $escaper->escapeHtml(__('Expiration Date')) ?>" class="col card-expire">
+        <?= $escaper->escapeHtml($block->getExpDate()) ?>
+    </td>
+    <td data-th="<?= $escaper->escapeHtml(__('Type')) ?>" class="col card-type">
+        <?php if ($block->getIconUrl()): ?>
+            <img
+                src="<?= $escaper->escapeUrl($block->getIconUrl()) ?>"
+                width="<?= /* @noEscape */ $block->getIconWidth() ?>"
+                height="<?= /* @noEscape */ $block->getIconHeight() ?>"
+            />
+        <?php endif; ?>
+        <?= $escaper->escapeHtml($type) ?>
+    </td>
+    <td data-th="<?= $escaper->escapeHtml(__('Actions')) ?>" class="col actions">
+        <form
+            class="form"
+            action="<?= $escaper->escapeUrl($block->getUrl('vault/cards/deleteaction')) ?>"
+            method="post"
+        >
+            <?= /* @noEscape */ $block->getBlockHtml('formkey') ?>
+            <input
+                name="<?= $escaper->escapeHtmlAttr(PaymentTokenInterface::PUBLIC_HASH) ?>"
+                value="<?= $escaper->escapeHtmlAttr($block->getToken()->getPublicHash()) ?>"
+                type="hidden"
+            />
+            <button type="submit"
+                    class="action delete"
+                    data-mage-init='{
+                        "Magento_Vault/js/customer_account/deleteWidget": {
+                            "type": "popup",
+                            "modalClass": "my-credit-cards-popup",
+                            "toggleEvent": "click",
+                            "title": "<?= $escaper->escapeHtml(__('Delete')) ?>",
+                            "content": "<?= $escaper->escapeHtml(__('Are you sure you want to delete this card: %1?', $ccNumberView)) ?>"
+                        }
+                    }'
+            >
+                <span><?= $escaper->escapeHtml(__('Delete')) ?></span>
+            </button>
+        </form>
+    </td>
+</tr>

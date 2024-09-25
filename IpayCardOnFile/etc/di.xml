@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Banca Transilvania. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+-->
+<config
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd"
+>
+    <preference
+        for="BTRL\IpayCardOnFile\Api\UpdatePaymentMethod"
+        type="BTRL\IpayCardOnFile\Service\UpdatePaymentMethod"
+    />
+    <type name="BTRL\Ipay\Cron\CancelExpiredOrders">
+        <arguments>
+            <argument name="methodCodes" xsi:type="array">
+                <item name="ipay_cof" xsi:type="const">BTRL\IpayCardOnFile\Model\Ui\ConfigProvider::VAULT_CODE</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Vault proxy method -->
+    <virtualType name="BTRLiPayVaultFacade" type="BTRL\IpayCardOnFile\Model\Method\Vault">
+        <arguments>
+            <argument name="code" xsi:type="const">BTRL\IpayCardOnFile\Model\Ui\ConfigProvider::VAULT_CODE</argument>
+            <argument name="config" xsi:type="object">BTRLiPayVaultConfig</argument>
+            <argument name="valueHandlerPool" xsi:type="object">BTRLiPayVaultPaymentValueHandlerPool</argument>
+            <argument name="vaultProvider" xsi:type="object">BTRLiPay</argument>
+            <argument name="commandPool" xsi:type="object">BTRLiPayCommandPool</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Gateway configuration -->
+    <virtualType name="BTRLiPayVaultPaymentValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">BTRLiPayVaultPaymentValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="BTRLiPayVaultPaymentValueHandler" type="VaultPaymentDefaultValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">BTRLiPayVaultConfig</argument>
+        </arguments>
+    </virtualType>
+    <!-- Use same configurations from BTRL iPay method -->
+    <virtualType name="BTRLiPayVaultConfig" type="BTRL\Ipay\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">BTRL\IpayCardOnFile\Model\Ui\ConfigProvider::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Command manager -->
+    <virtualType name="BTRLiPayCommandManager" type="Magento\Payment\Gateway\Command\CommandManager">
+        <arguments>
+            <argument name="commandPool" xsi:type="object">BTRLiPayCommandPool</argument>
+        </arguments>
+    </virtualType>
+    <type name="Magento\Payment\Gateway\Command\CommandManagerPool">
+        <arguments>
+            <argument name="executors" xsi:type="array">
+                <item name="btrl_ipay" xsi:type="string">BTRLiPayCommandManager</item>
+                <item name="btrl_ipay_cof" xsi:type="string">BTRLiPayCommandManager</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Extend gateway transactions for Vault -->
+    <virtualType name="BTRLiPayCommandPool">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="vault_authorize" xsi:type="string">BTRLiPayAuthorizeCommand</item>
+                <item name="vault_initialize" xsi:type="string">BTRLiPayAuthorizeCommand</item>
+                <item name="vault_sale" xsi:type="string">BTRLiPayAuthorizeCommand</item>
+                <item name="vault_capture" xsi:type="string">BTRLiPayCaptureCommand</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Add Vault request builder for authorize transaction -->
+    <virtualType name="BTRLiPayAuthorizeRequest">
+        <arguments>
+            <argument name="builders" xsi:type="array">
+                <item
+                    name="vault_authorize"
+                    xsi:type="string"
+                >BTRL\IpayCardOnFile\Gateway\Request\CardOnFileDataBuilder</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Extend configuration model with saved card actions -->
+    <type name="BTRL\Ipay\Gateway\Config\Config">
+        <plugin name="btrl_ipay_cof_actions" type="BTRL\IpayCardOnFile\Plugin\AddUnbindActionToConfigurationModel" />
+    </type>
+
+    <!-- Make sure saved card is actually removed and unbidden -->
+    <type name="Magento\Vault\Api\PaymentTokenRepositoryInterface">
+        <plugin name="btrl_ipay_remove_saved_card" type="BTRL\IpayCardOnFile\Plugin\RemoveSavedCard" />
+    </type>
+</config>
